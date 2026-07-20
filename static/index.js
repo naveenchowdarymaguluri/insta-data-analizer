@@ -15,6 +15,7 @@ let currentTimezone = 'UTC';
 // Active Filters State
 let selectedCreator = 'all';
 let selectedFormat = 'all';
+let selectedCompetitors = [];
 let filterStartDate = '';
 let filterEndDate = '';
 
@@ -55,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTimezoneToggle();
     setupDrawerControls();
     setupScraperTab();
+    setupCompareTab();
     
     lucide.createIcons();
 });
@@ -1606,6 +1608,69 @@ function openCreatorDrawer(username) {
                 <div class="lbl">Avg Engagement</div>
             </div>
         </div>
+
+        <!-- Circular rating gauges for Creator and Brand indexes -->
+        <div class="drawer-scores-wrapper">
+            <div class="drawer-score-card">
+                <div class="score-circle-container creator">
+                    <span class="score-val creator">${creator.creatorScore}</span>
+                </div>
+                <h5>Creator Score</h5>
+                <span>ER & Consistency Index</span>
+            </div>
+            <div class="drawer-score-card">
+                <div class="score-circle-container brand">
+                    <span class="score-val brand">${creator.brandScore}</span>
+                </div>
+                <h5>Brand Score</h5>
+                <span>CTA & Integrations Index</span>
+            </div>
+        </div>
+
+        <!-- Topic Categories & Distributions -->
+        <h4 class="drawer-section-title">Content Classification</h4>
+        <div class="drawer-caption-stat" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span class="topic-badge ${creator.dominantCategory.toLowerCase()}">${creator.dominantCategory}</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Dominant Category</span>
+        </div>
+        
+        <div class="chart-container" style="position: relative; height: 180px; margin-bottom: 24px; padding: 10px;">
+            <canvas id="drawer-categories-chart"></canvas>
+        </div>
+
+        <!-- Caption styling analysis -->
+        <h4 class="drawer-section-title">Caption & Writing Style Analysis</h4>
+        <div class="drawer-caption-analysis">
+            <div class="drawer-caption-stat">
+                <div class="stat-num">${creator.captionMetrics.averageLength}</div>
+                <div class="stat-lbl">Avg Characters</div>
+            </div>
+            <div class="drawer-caption-stat">
+                <div class="stat-num">${creator.captionMetrics.averageEmojis}</div>
+                <div class="stat-lbl">Emojis Per Post</div>
+            </div>
+            <div class="drawer-caption-stat">
+                <div class="stat-num">${creator.captionMetrics.ctaRate}%</div>
+                <div class="stat-lbl">CTA Frequency Rate</div>
+            </div>
+            <div class="drawer-caption-stat">
+                <div class="stat-num">${creator.captionMetrics.questionRate}%</div>
+                <div class="stat-lbl">Questions Rate</div>
+            </div>
+        </div>
+
+        <!-- Soundtracks used -->
+        ${creator.audioTracks && creator.audioTracks.length > 0 ? `
+            <h4 class="drawer-section-title">Reels & Audio Soundtracks</h4>
+            <div class="audio-list">
+                ${creator.audioTracks.map(audio => `
+                    <div class="audio-item">
+                        <i data-lucide="music"></i>
+                        <span>${audio}</span>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
         
         <h4 class="drawer-section-title">Published Content List</h4>
         <div class="drawer-posts-list">
@@ -1615,6 +1680,42 @@ function openCreatorDrawer(username) {
     
     drawer.style.display = 'flex';
     lucide.createIcons();
+
+    // Render drawer categories Doughnut chart
+    const catsData = creator.categoryDistribution || {};
+    const catLabels = Object.keys(catsData).filter(c => catsData[c] > 0);
+    const catValues = catLabels.map(c => catsData[c]);
+
+    const ctx = document.getElementById('drawer-categories-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catValues,
+                backgroundColor: [
+                    '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', 
+                    '#14b8a6', '#ef4444', '#6366f1', '#a855f7', '#6b7280', 
+                    '#4b5563', '#9ca3af'
+                ],
+                borderWidth: 1,
+                borderColor: 'var(--border-color)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: 'var(--text-secondary)',
+                        font: { size: 9 }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function closeCreatorDrawer() {
@@ -1666,6 +1767,11 @@ function switchTab(tabName) {
             title.textContent = 'Posts Table Grid';
             desc.textContent = 'Search, sort, filter, and inspect individual posts';
             setupTableControls();
+            break;
+        case 'compare':
+            title.textContent = 'Competitor Comparison';
+            desc.textContent = 'Evaluate multiple creator accounts side-by-side';
+            initCompareTab();
             break;
         case 'scrape':
             title.textContent = 'Live Scraper Audit';
@@ -2006,5 +2112,240 @@ function triggerApifyScrape() {
         progressOverlay.style.display = 'none';
         console.error(error);
         showToast('error', error.message || 'Scraper run failed. Check API key and profile handle.');
+    });
+}
+
+// ==========================================================================
+// Upgrades: Competitor Comparison Tab Functions
+// ==========================================================================
+
+function setupCompareTab() {
+    const selectAllBtn = document.getElementById('btn-compare-select-all');
+    const clearAllBtn = document.getElementById('btn-compare-clear-all');
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            if (!rawDashboardData || !rawDashboardData.creators) return;
+            selectedCompetitors = rawDashboardData.creators.map(c => c.username);
+            
+            document.querySelectorAll('.compare-selection-item').forEach(item => {
+                item.classList.add('selected');
+                const cb = item.querySelector('input');
+                if (cb) cb.checked = true;
+            });
+            
+            renderCompareDashboard();
+        });
+    }
+    
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            selectedCompetitors = [];
+            
+            document.querySelectorAll('.compare-selection-item').forEach(item => {
+                item.classList.remove('selected');
+                const cb = item.querySelector('input');
+                if (cb) cb.checked = false;
+            });
+            
+            renderCompareDashboard();
+        });
+    }
+}
+
+function initCompareTab() {
+    const grid = document.getElementById('compare-selection-grid');
+    if (!grid) return;
+    
+    grid.innerHTML = '';
+    
+    if (!rawDashboardData || !rawDashboardData.creators || rawDashboardData.creators.length === 0) {
+        grid.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">No creator profiles loaded in active dataset.</p>';
+        return;
+    }
+    
+    // Set default selected competitors (all)
+    if (selectedCompetitors.length === 0) {
+        selectedCompetitors = rawDashboardData.creators.map(c => c.username);
+    }
+    
+    rawDashboardData.creators.forEach(creator => {
+        const isChecked = selectedCompetitors.includes(creator.username);
+        const item = document.createElement('label');
+        item.className = `compare-selection-item ${isChecked ? 'selected' : ''}`;
+        
+        item.innerHTML = `
+            <input type="checkbox" value="${creator.username}" ${isChecked ? 'checked' : ''}>
+            <span>@${creator.username}</span>
+        `;
+        
+        const checkbox = item.querySelector('input');
+        checkbox.addEventListener('change', () => {
+            if (checkbox.checked) {
+                if (!selectedCompetitors.includes(creator.username)) {
+                    selectedCompetitors.push(creator.username);
+                }
+                item.classList.add('selected');
+            } else {
+                selectedCompetitors = selectedCompetitors.filter(u => u !== creator.username);
+                item.classList.remove('selected');
+            }
+            renderCompareDashboard();
+        });
+        
+        grid.appendChild(item);
+    });
+    
+    renderCompareDashboard();
+}
+
+function renderCompareDashboard() {
+    const emptyState = document.getElementById('compare-empty-state');
+    const contentArea = document.getElementById('compare-content-area');
+    
+    if (selectedCompetitors.length < 2) {
+        emptyState.style.display = 'block';
+        contentArea.style.display = 'none';
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    contentArea.style.display = 'block';
+    
+    const selectedCreators = rawDashboardData.creators.filter(c => selectedCompetitors.includes(c.username));
+    
+    // 1. Headers Columns
+    const headersTr = document.getElementById('compare-table-headers');
+    headersTr.innerHTML = '<th>Performance Metric</th>';
+    selectedCreators.forEach(creator => {
+        headersTr.innerHTML += `
+            <th style="text-align: center; vertical-align: middle;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 10px;">
+                    <img src="${creator.profilePicUrl || 'https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=50&auto=format&fit=crop&q=60'}" style="width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color);" onerror="this.src='https://images.unsplash.com/photo-1511367461989-f85a21fda167?w=50&auto=format&fit=crop&q=60'">
+                    <span>@${creator.username}</span>
+                </div>
+            </th>
+        `;
+    });
+    
+    // 2. Metrics Rows Def
+    const metricsDef = [
+        { key: 'followersCount', label: 'Followers Size', format: val => formatLargeNumber(val), isNumeric: true },
+        { key: 'postsCount', label: 'Total Posts (All Time)', format: val => val.toLocaleString(), isNumeric: true },
+        { key: 'scrapedPostsCount', label: 'Timeline Audited Posts', format: val => val.toLocaleString(), isNumeric: true },
+        { key: 'averageLikes', label: 'Average Post Likes', format: val => val.toLocaleString(), isNumeric: true },
+        { key: 'averageComments', label: 'Average Post Comments', format: val => val.toLocaleString(), isNumeric: true },
+        { key: 'averageEngagementRate', label: 'Engagement Rate (ER)', format: val => `${val.toFixed(2)}%`, isNumeric: true },
+        { key: 'creatorScore', label: 'Influencer Rating Score', format: val => `${val}/100`, isNumeric: true },
+        { key: 'brandScore', label: 'Brand Suitability Score', format: val => `${val}/100`, isNumeric: true },
+        { key: 'postingFrequency', label: 'Posting Frequency (posts/wk)', format: val => `${val} posts`, isNumeric: true },
+        { key: 'postingConsistency', label: 'Posting Consistency', format: val => val, isNumeric: false },
+        { key: 'dominantCategory', label: 'Dominant Category', format: val => `<span class="topic-badge ${val.toLowerCase()}">${val}</span>`, isNumeric: false },
+        { key: 'topHashtags', label: 'Dominant Hashtags', format: val => (val && val.length > 0) ? val.map(t => t.hashtag).join(' ') : 'None', isNumeric: false }
+    ];
+    
+    const body = document.getElementById('compare-table-body');
+    body.innerHTML = '';
+    
+    metricsDef.forEach(metric => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td><b>${metric.label}</b></td>`;
+        
+        let bestVal = -1;
+        if (metric.isNumeric) {
+            bestVal = Math.max(...selectedCreators.map(c => c[metric.key] || 0));
+        }
+        
+        selectedCreators.forEach(creator => {
+            const rawVal = creator[metric.key];
+            const isBest = metric.isNumeric && rawVal === bestVal && bestVal > 0;
+            row.innerHTML += `
+                <td style="text-align: center;" class="${isBest ? 'best-value' : ''}">
+                    ${metric.format(rawVal)}
+                </td>
+            `;
+        });
+        
+        body.appendChild(row);
+    });
+    
+    renderCompareCharts(selectedCreators);
+}
+
+function renderCompareCharts(selectedCreators) {
+    const labels = selectedCreators.map(c => `@${c.username}`);
+    const followersData = selectedCreators.map(c => c.followersCount);
+    const erData = selectedCreators.map(c => c.averageEngagementRate);
+    
+    if (charts.compareFollowers) charts.compareFollowers.destroy();
+    if (charts.compareEr) charts.compareEr.destroy();
+    
+    const ctxFollowers = document.getElementById('chart-compare-followers').getContext('2d');
+    charts.compareFollowers = new Chart(ctxFollowers, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Followers Size',
+                data: followersData,
+                backgroundColor: 'rgba(139, 92, 246, 0.45)',
+                borderColor: 'var(--accent-primary)',
+                borderWidth: 1.5,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: 'var(--text-secondary)' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: 'var(--text-secondary)' }
+                }
+            }
+        }
+    });
+    
+    const ctxEr = document.getElementById('chart-compare-er').getContext('2d');
+    charts.compareEr = new Chart(ctxEr, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Average Engagement Rate (%)',
+                data: erData,
+                backgroundColor: 'rgba(236, 72, 153, 0.45)',
+                borderColor: 'var(--accent-secondary)',
+                borderWidth: 1.5,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: {
+                        color: 'var(--text-secondary)',
+                        callback: function(value) { return value + '%'; }
+                    }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: 'var(--text-secondary)' }
+                }
+            }
+        }
     });
 }

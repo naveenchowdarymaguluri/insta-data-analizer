@@ -50,6 +50,10 @@
                     <i data-lucide="file-text"></i>
                     <span>Posts Viewer</span>
                 </button>
+                <button class="nav-item" data-tab="compare">
+                    <i data-lucide="git-compare"></i>
+                    <span>Creator Comparison</span>
+                </button>
                 <button class="nav-item" data-tab="scrape">
                     <i data-lucide="scan-line"></i>
                     <span>Scrape Live Data</span>
@@ -404,7 +408,76 @@
                     </div>
                 </div>
 
-                <!-- TAB 5: SCRAPE LIVE DATA -->
+                <!-- TAB 5: CREATOR COMPARISON -->
+                <div id="tab-compare" class="tab-panel">
+                    <div class="chart-card glass-panel compare-selector-card" style="margin-bottom: 24px;">
+                        <div class="chart-header" style="flex-direction: row; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                            <div>
+                                <h3>Select Competitors to Compare</h3>
+                                <p>Select two or more creator profiles to evaluate their performance side-by-side</p>
+                            </div>
+                            <div class="btn-group">
+                                <button class="page-btn active" id="btn-compare-select-all">Select All</button>
+                                <button class="page-btn" id="btn-compare-clear-all" style="background:transparent; border:1px solid var(--border-color); color:var(--text-secondary);">Clear Selections</button>
+                            </div>
+                        </div>
+                        <div class="compare-selection-grid" id="compare-selection-grid">
+                            <!-- Populated dynamically with creator checkboxes -->
+                        </div>
+                    </div>
+
+                    <!-- Comparison Table & Charts Container -->
+                    <div id="compare-content-area" style="display: none;">
+                        <div class="chart-card glass-panel compare-table-card" style="margin-bottom: 24px;">
+                            <div class="chart-header">
+                                <h3>Competitor Comparison Matrix</h3>
+                                <p>Side-by-side overview of followers, engagement metrics, scoring indexes, and content styles</p>
+                            </div>
+                            <div class="pricing-table-wrapper compare-table-wrapper" style="overflow-x: auto;">
+                                <table class="pricing-table compare-table" id="compare-matrix-table">
+                                    <thead>
+                                        <tr id="compare-table-headers">
+                                            <!-- Dyn Columns -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="compare-table-body">
+                                        <!-- Dyn rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="grid-2col">
+                            <div class="chart-card glass-panel">
+                                <div class="chart-header">
+                                    <h3>Followers Comparison</h3>
+                                    <p>Audience size comparison across selected accounts</p>
+                                </div>
+                                <div class="chart-container" style="position: relative; height: 320px;">
+                                    <canvas id="chart-compare-followers"></canvas>
+                                </div>
+                            </div>
+                            <div class="chart-card glass-panel">
+                                <div class="chart-header">
+                                    <h3>Engagement Rate Comparison</h3>
+                                    <p>Average timeline engagement percentage comparison</p>
+                                </div>
+                                <div class="chart-container" style="position: relative; height: 320px;">
+                                    <canvas id="chart-compare-er"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="chart-card glass-panel compare-empty-state" id="compare-empty-state" style="padding: 48px; text-align: center; border-style: dashed; border-width: 2px;">
+                        <i data-lucide="git-compare" style="width: 48px; height: 48px; color: var(--text-muted); margin-bottom: 16px;"></i>
+                        <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; margin-bottom: 8px;">No Competitors Selected</h3>
+                        <p style="color: var(--text-secondary); max-width: 420px; margin: 0 auto; font-size: 0.85rem;">Please select at least two creator profiles in the checklist card above to build your performance comparison matrix.</p>
+                    </div>
+                </div>
+
+                <!-- TAB 6: SCRAPE LIVE DATA -->
                 <div id="tab-scrape" class="tab-panel">
                     <div class="grid-2col">
                         <!-- Scraping Configuration Card -->

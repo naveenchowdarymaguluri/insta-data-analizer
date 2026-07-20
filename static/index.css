@@ -2292,6 +2292,221 @@ body {
 }
 
 /* ==========================================================================
+   Upgrades: Competitor Comparison Tab & Influencer Details Drawer
+   ========================================================================== */
+
+/* Compare selection grid */
+.compare-selection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.compare-selection-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.compare-selection-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-primary);
+}
+
+.compare-selection-item.selected {
+    background-color: rgba(139, 92, 246, 0.08);
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
+.compare-selection-item input[type="checkbox"] {
+    accent-color: var(--accent-secondary);
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+}
+
+/* Winner metrics cells */
+.compare-table td.best-value {
+    color: #10b981 !important; /* emerald green */
+    font-weight: 700 !important;
+    background-color: rgba(16, 185, 129, 0.05) !important;
+    box-shadow: inset 0 0 6px rgba(16, 185, 129, 0.1);
+}
+
+/* Category Badges */
+.topic-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border: 1px solid currentColor;
+}
+
+.topic-badge.fitness { background-color: rgba(16, 185, 129, 0.1); color: #10b981; }
+.topic-badge.food { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.topic-badge.travel { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.topic-badge.finance { background-color: rgba(16, 185, 129, 0.1); color: #10b981; }
+.topic-badge.technology { background-color: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.topic-badge.comedy { background-color: rgba(236, 72, 153, 0.1); color: #ec4899; }
+.topic-badge.fashion { background-color: rgba(236, 72, 153, 0.1); color: #ec4899; }
+.topic-badge.healthcare { background-color: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+.topic-badge.motivation { background-color: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.topic-badge.business { background-color: rgba(99, 102, 241, 0.1); color: #6366f1; }
+.topic-badge.gaming { background-color: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.topic-badge.sports { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.topic-badge.lifestyle { background-color: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
+
+/* Score circular displays inside Drawer */
+.drawer-scores-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.drawer-score-card {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: all var(--transition-fast);
+}
+
+.drawer-score-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.score-circle-container {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 3px solid var(--border-color);
+}
+
+.score-circle-container.creator {
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.15);
+}
+
+.score-circle-container.brand {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+}
+
+.score-circle-container .score-val {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+.score-circle-container .score-val.creator { color: var(--accent-secondary); }
+.score-circle-container .score-val.brand { color: var(--accent-primary); }
+
+.drawer-score-card h5 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.drawer-score-card span {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* Caption analytics styles */
+.drawer-caption-analysis {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.drawer-caption-stat {
+    background-color: rgba(255, 255, 255, 0.01);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    transition: all var(--transition-fast);
+}
+
+.drawer-caption-stat:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.drawer-caption-stat .stat-num {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.drawer-caption-stat .stat-lbl {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Audio items styling */
+.audio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0 20px;
+}
+
+.audio-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    background-color: rgba(255, 255, 255, 0.01);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-fast);
+}
+
+.audio-item:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.audio-item i {
+    width: 14px;
+    height: 14px;
+    color: var(--accent-secondary);
+    fill: currentColor;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
    Responsive Breakpoints
    ========================================================================== */
 @media (max-width: 1200px) {
