@@ -11,30 +11,71 @@ def compile_apify_items(items):
     creators = {}
     
     for item in items:
-        # Resolve username (can be flat item 'username' or inside nested 'owner')
-        username = item.get("username")
-        owner = item.get("owner")
+        # Try all possible keys for username (both flat and nested under owner/user)
+        username = (
+            item.get("username") or 
+            item.get("ownerUsername") or 
+            item.get("userName") or
+            (item.get("owner") and isinstance(item["owner"], dict) and item["owner"].get("username")) or
+            (item.get("user") and isinstance(item["user"], dict) and item["user"].get("username"))
+        )
         
-        if not username and owner:
-            username = owner.get("username")
-            
         if not username:
             # Skip items that have no creator metadata
             continue
             
         username = username.strip().lower()
+        owner = item.get("owner") if isinstance(item.get("owner"), dict) else None
+        user = item.get("user") if isinstance(item.get("user"), dict) else None
         
         # Initialize creator profile if not yet created
         if username not in creators:
-            # Look up metadata fields in root item, or fallback to owner dict
-            fullName = item.get("fullName") or (owner.get("fullName") if owner else None) or username
-            biography = item.get("biography") or (owner.get("biography") if owner else "") or ""
-            followersCount = item.get("followersCount") or (owner.get("followersCount") if owner else 0) or 0
-            followsCount = item.get("followsCount") or (owner.get("followsCount") if owner else 0) or 0
-            verified = item.get("verified") or (owner.get("verified") if owner else False) or False
+            # Look up metadata fields in root item, or fallback to owner/user dicts
+            fullName = (
+                item.get("fullName") or 
+                item.get("ownerFullName") or 
+                (owner and owner.get("fullName")) or
+                (user and user.get("fullName")) or
+                username
+            )
+            biography = (
+                item.get("biography") or 
+                item.get("ownerBiography") or 
+                (owner and owner.get("biography")) or
+                (user and user.get("biography")) or
+                ""
+            )
+            followersCount = (
+                item.get("followersCount") or 
+                item.get("ownerFollowersCount") or 
+                (owner and owner.get("followersCount")) or
+                (user and user.get("followersCount")) or
+                0
+            )
+            followsCount = (
+                item.get("followsCount") or 
+                item.get("ownerFollowsCount") or 
+                (owner and owner.get("followsCount")) or
+                (user and user.get("followsCount")) or
+                0
+            )
+            verified = (
+                item.get("verified") or 
+                item.get("ownerVerified") or 
+                (owner and owner.get("verified")) or
+                (user and user.get("verified")) or
+                False
+            )
             isBusiness = item.get("isBusinessAccount") or False
             category = item.get("businessCategoryName")
-            profilePic = item.get("profilePicUrlHD") or item.get("profilePicUrl") or (owner.get("profilePicUrl") if owner else None)
+            profilePic = (
+                item.get("profilePicUrlHD") or 
+                item.get("profilePicUrl") or 
+                item.get("ownerProfilePicUrl") or 
+                (owner and (owner.get("profilePicUrl") or owner.get("profilePicUrlHD"))) or
+                (user and (user.get("profilePicUrl") or user.get("profilePicUrlHD"))) or
+                None
+            )
             postsCount = item.get("postsCount") or 0
             
             creators[username] = {
@@ -52,14 +93,39 @@ def compile_apify_items(items):
             }
         else:
             # Enrich profile details if missing and present in current item
-            if not creators[username]["biography"] and (item.get("biography") or (owner and owner.get("biography"))):
-                creators[username]["biography"] = item.get("biography") or owner.get("biography")
-            if creators[username]["followersCount"] == 0 and (item.get("followersCount") or (owner and owner.get("followersCount"))):
-                creators[username]["followersCount"] = int(item.get("followersCount") or owner.get("followersCount"))
-            if creators[username]["followsCount"] == 0 and (item.get("followsCount") or (owner and owner.get("followsCount"))):
-                creators[username]["followsCount"] = int(item.get("followsCount") or owner.get("followsCount"))
-            if not creators[username]["profilePicUrl"] and (item.get("profilePicUrlHD") or item.get("profilePicUrl") or (owner and owner.get("profilePicUrl"))):
-                creators[username]["profilePicUrl"] = item.get("profilePicUrlHD") or item.get("profilePicUrl") or owner.get("profilePicUrl")
+            if not creators[username]["biography"]:
+                creators[username]["biography"] = (
+                    item.get("biography") or 
+                    item.get("ownerBiography") or 
+                    (owner and owner.get("biography")) or
+                    (user and user.get("biography")) or
+                    ""
+                )
+            if creators[username]["followersCount"] == 0:
+                creators[username]["followersCount"] = int(
+                    item.get("followersCount") or 
+                    item.get("ownerFollowersCount") or 
+                    (owner and owner.get("followersCount")) or
+                    (user and user.get("followersCount")) or
+                    0
+                )
+            if creators[username]["followsCount"] == 0:
+                creators[username]["followsCount"] = int(
+                    item.get("followsCount") or 
+                    item.get("ownerFollowsCount") or 
+                    (owner and owner.get("followsCount")) or
+                    (user and user.get("followsCount")) or
+                    0
+                )
+            if not creators[username]["profilePicUrl"]:
+                creators[username]["profilePicUrl"] = (
+                    item.get("profilePicUrlHD") or 
+                    item.get("profilePicUrl") or 
+                    item.get("ownerProfilePicUrl") or 
+                    (owner and (owner.get("profilePicUrl") or owner.get("profilePicUrlHD"))) or
+                    (user and (user.get("profilePicUrl") or user.get("profilePicUrlHD"))) or
+                    None
+                )
             if creators[username]["postsCount"] == 0 and item.get("postsCount"):
                 creators[username]["postsCount"] = int(item.get("postsCount"))
 
@@ -70,7 +136,6 @@ def compile_apify_items(items):
                 post_id = post.get("id")
                 if post_id:
                     if not any(p["id"] == post_id for p in creators[username]["latestPosts"]):
-                        # Map format type (Sidecar is Carousel, Video/Clip/Reel is Video)
                         post_type = post.get("type", "Image")
                         if post_type == "Sidecar":
                             post_type = "Sidecar"
@@ -79,23 +144,30 @@ def compile_apify_items(items):
                         else:
                             post_type = "Image"
                         
+                        likes = post.get("likesCount") or post.get("likeCount") or post.get("likes", 0)
+                        comments = post.get("commentsCount") or post.get("commentCount") or post.get("comments", 0)
+                        caption = post.get("caption") or post.get("captionText") or post.get("text", "")
+                        timestamp = post.get("timestamp") or post.get("datetime") or post.get("createdAt")
+                        post_url = post.get("url") or post.get("postUrl") or post.get("link")
+                        
                         creators[username]["latestPosts"].append({
                             "id": post_id,
                             "type": post_type,
                             "shortCode": post.get("shortCode"),
-                            "caption": post.get("caption", ""),
-                            "url": post.get("url"),
-                            "likesCount": int(post.get("likesCount", 0)),
-                            "commentsCount": int(post.get("commentsCount", 0)),
-                            "timestamp": post.get("timestamp"),
-                            "displayUrl": post.get("displayUrl"),
+                            "caption": caption,
+                            "url": post_url,
+                            "likesCount": int(likes),
+                            "commentsCount": int(comments),
+                            "timestamp": timestamp,
+                            "displayUrl": post.get("displayUrl") or post.get("imageUrl"),
                             "videoUrl": post.get("videoUrl"),
                             "productType": post.get("productType")
                         })
                         
         # Case B: Handle flat post item (e.g. resultsType='posts' format)
         post_id = item.get("id")
-        if post_id and ("likesCount" in item or "commentsCount" in item or "caption" in item):
+        has_post_fields = any(x in item for x in ["likesCount", "likeCount", "commentsCount", "commentCount", "caption", "captionText"])
+        if post_id and has_post_fields:
             if not any(p["id"] == post_id for p in creators[username]["latestPosts"]):
                 post_type = item.get("type", "Image")
                 if post_type == "Sidecar":
@@ -105,16 +177,22 @@ def compile_apify_items(items):
                 else:
                     post_type = "Image"
                 
+                likes = item.get("likesCount") or item.get("likeCount") or item.get("likes", 0)
+                comments = item.get("commentsCount") or item.get("commentCount") or item.get("comments", 0)
+                caption = item.get("caption") or item.get("captionText") or item.get("text", "")
+                timestamp = item.get("timestamp") or item.get("datetime") or item.get("createdAt")
+                post_url = item.get("url") or item.get("postUrl") or item.get("link")
+                
                 creators[username]["latestPosts"].append({
                     "id": post_id,
                     "type": post_type,
                     "shortCode": item.get("shortCode"),
-                    "caption": item.get("caption", ""),
-                    "url": item.get("url"),
-                    "likesCount": int(item.get("likesCount", 0)),
-                    "commentsCount": int(item.get("commentsCount", 0)),
-                    "timestamp": item.get("timestamp"),
-                    "displayUrl": item.get("displayUrl"),
+                    "caption": caption,
+                    "url": post_url,
+                    "likesCount": int(likes),
+                    "commentsCount": int(comments),
+                    "timestamp": timestamp,
+                    "displayUrl": item.get("displayUrl") or item.get("imageUrl"),
                     "videoUrl": item.get("videoUrl"),
                     "productType": item.get("productType")
                 })
