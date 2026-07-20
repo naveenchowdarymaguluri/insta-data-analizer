@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InstaPulse | Instagram Creator Analytics Dashboard</title>
+    
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="/static/index.css">
+    
+    <!-- FontAwesome / Lucide Icons via CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- App Container -->
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">
+                    <i data-lucide="instagram" class="logo-icon"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>InstaPulse</h1>
+                    <span>Analytics Engine</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="overview">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Overview</span>
+                </button>
+                <button class="nav-item" data-tab="creators">
+                    <i data-lucide="users"></i>
+                    <span>Creators</span>
+                </button>
+                <button class="nav-item" data-tab="engagement">
+                    <i data-lucide="trending-up"></i>
+                    <span>Engagement</span>
+                </button>
+                <button class="nav-item" data-tab="posts">
+                    <i data-lucide="file-text"></i>
+                    <span>Posts Viewer</span>
+                </button>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="dataset-source">
+                    <div class="indicator pulse"></div>
+                    <div class="source-info">
+                        <span class="label">Dataset Active</span>
+                        <span id="active-dataset-name" class="val">Default Scrape Data</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Body Area -->
+        <main class="main-content">
+            <!-- Top App Bar -->
+            <header class="top-bar">
+                <div class="page-title">
+                    <h2 id="current-view-title">Overview Dashboard</h2>
+                    <p id="current-view-desc">High level statistics and comparative analysis</p>
+                </div>
+                
+                <div class="top-bar-actions">
+                    <!-- File Upload Input Trigger -->
+                    <label class="upload-btn" for="file-upload">
+                        <i data-lucide="upload-cloud"></i>
+                        <span>Upload Dataset</span>
+                    </label>
+                    <input type="file" id="file-upload" accept=".json,.xlsx,.xls" style="display: none;">
+                    
+                    <button class="theme-toggle" id="theme-switch" title="Toggle Light/Dark Mode">
+                        <i data-lucide="sun" id="sun-icon"></i>
+                        <i data-lucide="moon" id="moon-icon" style="display: none;"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Content Panels -->
+            <div class="dashboard-viewport">
+                
+                <!-- Loading Overlay -->
+                <div id="loading-overlay" class="overlay" style="display: none;">
+                    <div class="loader-card">
+                        <div class="spinner"></div>
+                        <h3>Analyzing Dataset</h3>
+                        <p>Parsing profiles, extracting posts, and calculating metrics...</p>
+                    </div>
+                </div>
+
+                <!-- Drag and Drop Overlay -->
+                <div id="drag-drop-zone" class="drag-drop-zone">
+                    <div class="drag-drop-content">
+                        <i data-lucide="arrow-up-to-line" class="drag-icon"></i>
+                        <h2>Drop Scraper Data Here</h2>
+                        <p>Accepts Instagram Scraper JSON or Excel files</p>
+                    </div>
+                </div>
+
+                <!-- KPI Metric Row -->
+                <section class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon-wrapper followers">
+                            <i data-lucide="users"></i>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-title">Total Creators</span>
+                            <span id="kpi-total-creators" class="kpi-value">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon-wrapper audience">
+                            <i data-lucide="heart"></i>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-title">Total Reach (Followers)</span>
+                            <span id="kpi-total-followers" class="kpi-value">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon-wrapper posts">
+                            <i data-lucide="video"></i>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-title">Posts Analyzed</span>
+                            <span id="kpi-posts-scraped" class="kpi-value">-</span>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon-wrapper engagement">
+                            <i data-lucide="activity"></i>
+                        </div>
+                        <div class="kpi-data">
+                            <span class="kpi-title">Avg Engagement Rate</span>
+                            <span id="kpi-avg-er" class="kpi-value">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 1: OVERVIEW -->
+                <div id="tab-overview" class="tab-panel active">
+                    <div class="grid-2col">
+                        <!-- Chart 1: Followers comparison -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Followers Comparison</h3>
+                                <p>Total following size across creators</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="followersChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart 2: Engagement Comparison -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Average Engagement Rate</h3>
+                                <p>Creator ER compared (Likes + Comments) / Followers</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="engagementChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-3col margin-top">
+                        <!-- Top Performers Summary -->
+                        <div class="summary-list-card glass-panel">
+                            <div class="card-header">
+                                <h3>Top Creators by ER</h3>
+                            </div>
+                            <div class="summary-list" id="top-creators-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                        
+                        <!-- Content Type Summary -->
+                        <div class="summary-list-card glass-panel">
+                            <div class="card-header">
+                                <h3>Format Share</h3>
+                            </div>
+                            <div class="chart-container-small">
+                                <canvas id="contentTypeChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Mini Checklist/Stats Summary -->
+                        <div class="summary-list-card glass-panel">
+                            <div class="card-header">
+                                <h3>Quick Highlights</h3>
+                            </div>
+                            <div class="highlights-content" id="highlights-container">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: CREATORS -->
+                <div id="tab-creators" class="tab-panel">
+                    <div class="creators-header-controls">
+                        <h3>Scraped Creator Profiles</h3>
+                        <p>Click on any creator card to view full analytics and post breakdown.</p>
+                    </div>
+                    
+                    <div class="creators-grid" id="creators-card-grid">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- TAB 3: ENGAGEMENT -->
+                <div id="tab-engagement" class="tab-panel">
+                    <div class="grid-2col">
+                        <!-- Chart 3: Posting Schedule (Hourly) -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Hourly Posting Schedule</h3>
+                                <p>Number of posts published by hour of day (UTC)</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="hourlyScheduleChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart 4: Posting Schedule (Daily) -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Weekly Publishing Patterns</h3>
+                                <p>Number of posts published by day of week</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="dailyScheduleChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid-2col margin-top">
+                        <!-- Chart 5: Timeline Analysis -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Engagement Trends Over Time</h3>
+                                <p>Average engagement rate of posts over consecutive days</p>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="timelineChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Hashtag Frequency Card -->
+                        <div class="chart-card glass-panel">
+                            <div class="chart-header">
+                                <h3>Top Scraped Hashtags</h3>
+                                <p>Most frequently used hashtags across captions</p>
+                            </div>
+                            <div class="hashtag-cloud-container" id="hashtag-container">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: POSTS VIEWER -->
+                <div id="tab-posts" class="tab-panel">
+                    <div class="posts-table-card glass-panel">
+                        <div class="table-toolbar">
+                            <div class="table-search">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="posts-search" placeholder="Search captions, creators, hashtags...">
+                            </div>
+                            
+                            <div class="table-filters">
+                                <select id="filter-creator">
+                                    <option value="all">All Creators</option>
+                                </select>
+                                <select id="filter-type">
+                                    <option value="all">All Formats</option>
+                                    <option value="Video">Video</option>
+                                    <option value="Image">Image</option>
+                                    <option value="Sidecar">Carousel</option>
+                                </select>
+                                <select id="sort-posts">
+                                    <option value="likesCount-desc">Likes (High to Low)</option>
+                                    <option value="likesCount-asc">Likes (Low to High)</option>
+                                    <option value="commentsCount-desc">Comments (High to Low)</option>
+                                    <option value="engagementRate-desc">Engagement Rate (High to Low)</option>
+                                    <option value="timestamp-desc">Date (Newest First)</option>
+                                    <option value="timestamp-asc">Date (Oldest First)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="posts-table">
+                                <thead>
+                                    <tr>
+                                        <th>Creator</th>
+                                        <th>Post Preview</th>
+                                        <th>Type</th>
+                                        <th>Likes</th>
+                                        <th>Comments</th>
+                                        <th>ER %</th>
+                                        <th>Published Date</th>
+                                        <th>Link</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="posts-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="table-pagination" id="posts-pagination">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- CREATOR DETAIL DRAWER / OVERLAY PANEL -->
+    <div id="creator-drawer" class="drawer-overlay" style="display: none;">
+        <div class="drawer-content">
+            <button class="drawer-close" id="close-drawer">
+                <i data-lucide="x"></i>
+            </button>
+            
+            <div class="drawer-scrollable" id="creator-drawer-body">
+                <!-- Creator Deep-Dive Template (Populated dynamically) -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Frontend Dashboard Script -->
+    <script src="/static/index.js"></script>
+</body>
+</html>
