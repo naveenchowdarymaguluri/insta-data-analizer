@@ -1,5 +1,6 @@
 import os
 from apify_client import ApifyClient
+from concurrent.futures import ThreadPoolExecutor
 
 def compile_apify_items(items):
     """
@@ -202,7 +203,7 @@ def compile_apify_items(items):
 def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
     """
     Runs the apify/instagram-scraper actor for a list of usernames,
-    waiting for completion and returning compiled profiles dataset.
+    fetching both details and posts concurrently to compile a perfect dataset.
     """
     if not api_token:
         raise ValueError("Apify API Token is required.")
@@ -230,37 +231,52 @@ def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
     if not direct_urls:
         raise ValueError("No valid Instagram handles found in input.")
         
-    # Configure parameters. The standard actor is "apify/instagram-scraper"
-    # To scrape the feed of posts correctly, resultsType must be 'posts' and 
-    # resultsLimit is evaluated per URL (profile). We enforce Apify Proxy configuration.
-    run_input = {
-        "directUrls": direct_urls,
-        "resultsLimit": limit_per_creator,
-        "resultsType": "posts",
-        "searchLimit": 1,
-        "proxyConfiguration": {
-            "useApifyProxy": True
-        }
-    }
-    
-    try:
-        # Trigger the run and block until complete
-        print(f"Triggering Apify Instagram Scraper run for URLs: {direct_urls}...")
-        run = client.actor("apify/instagram-scraper").call(run_input=run_input)
-        
-        if not run:
-            raise RuntimeError("Scraper run returned empty result.")
-            
-        # Extract default dataset ID supporting both object attributes and dict subscription
+    # We will trigger details and posts runs concurrently to compile a perfect dataset
+    def fetch_details_run():
+        print(f"Triggering details scrape for: {direct_urls}...")
+        run = client.actor("apify/instagram-scraper").call(run_input={
+            "directUrls": direct_urls,
+            "resultsType": "details",
+            "proxyConfiguration": {
+                "useApifyProxy": True
+            }
+        })
         dataset_id = getattr(run, "default_dataset_id", None) or (run.get("defaultDatasetId") if hasattr(run, "get") else None)
-        if not dataset_id:
-            raise RuntimeError("Could not locate defaultDatasetId in run details.")
+        if dataset_id:
+            return client.dataset(dataset_id).list_items().items
+        return []
+
+    def fetch_posts_run():
+        print(f"Triggering posts scrape for: {direct_urls}...")
+        run = client.actor("apify/instagram-scraper").call(run_input={
+            "directUrls": direct_urls,
+            "resultsLimit": limit_per_creator,
+            "resultsType": "posts",
+            "searchLimit": 1,
+            "proxyConfiguration": {
+                "useApifyProxy": True
+            }
+        })
+        dataset_id = getattr(run, "default_dataset_id", None) or (run.get("defaultDatasetId") if hasattr(run, "get") else None)
+        if dataset_id:
+            return client.dataset(dataset_id).list_items().items
+        return []
+
+    try:
+        print(f"Starting concurrent Apify scraping (details + posts) for: {direct_urls}...")
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            future_details = executor.submit(fetch_details_run)
+            future_posts = executor.submit(fetch_posts_run)
             
-        print(f"Fetch results from dataset ID: {dataset_id}...")
-        items = client.dataset(dataset_id).list_items().items
-        
+            details_items = future_details.result()
+            posts_items = future_posts.result()
+            
+        all_items = details_items + posts_items
+        if not all_items:
+            raise RuntimeError("Scraper returned empty dataset for both details and posts runs.")
+            
         # Compile flat items into the aggregated profiles list
-        compiled_profiles = compile_apify_items(items)
+        compiled_profiles = compile_apify_items(all_items)
         return compiled_profiles
         
     except Exception as e:
