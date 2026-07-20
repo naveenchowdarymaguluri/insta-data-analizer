@@ -137,7 +137,15 @@ def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
     # Construct direct profile URLs
     direct_urls = []
     for username in usernames:
-        clean_user = username.strip().replace("@", "").strip()
+        clean_user = username.strip()
+        # Parse username from URL if necessary
+        if "instagram.com" in clean_user:
+            clean_user = clean_user.rstrip("/")
+            clean_user = clean_user.split("/")[-1]
+            if "?" in clean_user:
+                clean_user = clean_user.split("?")[0]
+                
+        clean_user = clean_user.replace("@", "").strip()
         if clean_user:
             direct_urls.append(f"https://www.instagram.com/{clean_user}/")
             
@@ -146,12 +154,15 @@ def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
         
     # Configure parameters. The standard actor is "apify/instagram-scraper"
     # To scrape the feed of posts correctly, resultsType must be 'posts' and 
-    # resultsLimit is evaluated per URL (profile).
+    # resultsLimit is evaluated per URL (profile). We enforce Apify Proxy configuration.
     run_input = {
         "directUrls": direct_urls,
         "resultsLimit": limit_per_creator,
         "resultsType": "posts",
-        "searchLimit": 1
+        "searchLimit": 1,
+        "proxyConfiguration": {
+            "useApifyProxy": True
+        }
     }
     
     try:
