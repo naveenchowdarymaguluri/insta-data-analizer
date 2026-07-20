@@ -3,29 +3,10 @@ from apify_client import ApifyClient
 
 def compile_apify_items(items):
     """
-    Aggregates flat items returned by Apify Instagram Scraper into the nested profile structure.
-    Expected schema format per profile:
-    {
-      "username": "...",
-      "fullName": "...",
-      "biography": "...",
-      "followersCount": 123,
-      "followsCount": 45,
-      "verified": True/False,
-      "isBusinessAccount": True/False,
-      "businessCategoryName": "...",
-      "profilePicUrl": "...",
-      "postsCount": 567,
-      "latestPosts": [
-         {
-           "id": "...",
-           "type": "Video/Image/Sidecar",
-           "caption": "...",
-           "likesCount": 10,
-           ...
-         }
-      ]
-    }
+    Aggregates items returned by Apify Instagram Scraper into the nested profile structure.
+    Supports:
+      1. Profile-level items (from resultsType='details' runs) where latestPosts is nested.
+      2. Post-level items (from resultsType='posts' runs) where owner metadata is nested inside each post.
     """
     creators = {}
     
@@ -47,10 +28,10 @@ def compile_apify_items(items):
         if username not in creators:
             # Look up metadata fields in root item, or fallback to owner dict
             fullName = item.get("fullName") or (owner.get("fullName") if owner else None) or username
-            biography = item.get("biography") or ""
-            followersCount = item.get("followersCount") or (owner.get("followersCount") if owner else None) or 0
-            followsCount = item.get("followsCount") or (owner.get("followsCount") if owner else None) or 0
-            verified = item.get("verified") or (owner.get("verified") if owner else None) or False
+            biography = item.get("biography") or (owner.get("biography") if owner else "") or ""
+            followersCount = item.get("followersCount") or (owner.get("followersCount") if owner else 0) or 0
+            followsCount = item.get("followsCount") or (owner.get("followsCount") if owner else 0) or 0
+            verified = item.get("verified") or (owner.get("verified") if owner else False) or False
             isBusiness = item.get("isBusinessAccount") or False
             category = item.get("businessCategoryName")
             profilePic = item.get("profilePicUrlHD") or item.get("profilePicUrl") or (owner.get("profilePicUrl") if owner else None)
@@ -69,14 +50,53 @@ def compile_apify_items(items):
                 "postsCount": int(postsCount),
                 "latestPosts": []
             }
-            
-        # Add post details if the item contains post-level attributes
-        # Apify items representing posts will typically have 'likesCount' or 'shortCode'
+        else:
+            # Enrich profile details if missing and present in current item
+            if not creators[username]["biography"] and (item.get("biography") or (owner and owner.get("biography"))):
+                creators[username]["biography"] = item.get("biography") or owner.get("biography")
+            if creators[username]["followersCount"] == 0 and (item.get("followersCount") or (owner and owner.get("followersCount"))):
+                creators[username]["followersCount"] = int(item.get("followersCount") or owner.get("followersCount"))
+            if creators[username]["followsCount"] == 0 and (item.get("followsCount") or (owner and owner.get("followsCount"))):
+                creators[username]["followsCount"] = int(item.get("followsCount") or owner.get("followsCount"))
+            if not creators[username]["profilePicUrl"] and (item.get("profilePicUrlHD") or item.get("profilePicUrl") or (owner and owner.get("profilePicUrl"))):
+                creators[username]["profilePicUrl"] = item.get("profilePicUrlHD") or item.get("profilePicUrl") or owner.get("profilePicUrl")
+            if creators[username]["postsCount"] == 0 and item.get("postsCount"):
+                creators[username]["postsCount"] = int(item.get("postsCount"))
+
+        # Case A: Handle nested 'latestPosts' (e.g. resultsType='details' format)
+        nested_posts = item.get("latestPosts", [])
+        if isinstance(nested_posts, list) and len(nested_posts) > 0:
+            for post in nested_posts:
+                post_id = post.get("id")
+                if post_id:
+                    if not any(p["id"] == post_id for p in creators[username]["latestPosts"]):
+                        # Map format type (Sidecar is Carousel, Video/Clip/Reel is Video)
+                        post_type = post.get("type", "Image")
+                        if post_type == "Sidecar":
+                            post_type = "Sidecar"
+                        elif post_type in ["Video", "Clip", "Reel"]:
+                            post_type = "Video"
+                        else:
+                            post_type = "Image"
+                        
+                        creators[username]["latestPosts"].append({
+                            "id": post_id,
+                            "type": post_type,
+                            "shortCode": post.get("shortCode"),
+                            "caption": post.get("caption", ""),
+                            "url": post.get("url"),
+                            "likesCount": int(post.get("likesCount", 0)),
+                            "commentsCount": int(post.get("commentsCount", 0)),
+                            "timestamp": post.get("timestamp"),
+                            "displayUrl": post.get("displayUrl"),
+                            "videoUrl": post.get("videoUrl"),
+                            "productType": post.get("productType")
+                        })
+                        
+        # Case B: Handle flat post item (e.g. resultsType='posts' format)
         post_id = item.get("id")
         if post_id and ("likesCount" in item or "commentsCount" in item or "caption" in item):
-            # Check if this post was already added to prevent duplicates
             if not any(p["id"] == post_id for p in creators[username]["latestPosts"]):
-                # Map format type (Sidecar is Carousel, Video is Reel)
                 post_type = item.get("type", "Image")
                 if post_type == "Sidecar":
                     post_type = "Sidecar"
@@ -104,7 +124,7 @@ def compile_apify_items(items):
 def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
     """
     Runs the apify/instagram-scraper actor for a list of usernames,
-    waiting for completion and returningcompiled profiles dataset.
+    waiting for completion and returning compiled profiles dataset.
     """
     if not api_token:
         raise ValueError("Apify API Token is required.")
@@ -125,12 +145,13 @@ def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
         raise ValueError("No valid Instagram handles found in input.")
         
     # Configure parameters. The standard actor is "apify/instagram-scraper"
+    # To scrape the feed of posts correctly, resultsType must be 'posts' and 
+    # resultsLimit is evaluated per URL (profile).
     run_input = {
         "directUrls": direct_urls,
-        "resultsLimit": limit_per_creator * len(direct_urls),
-        "resultsType": "details",
-        "searchLimit": 1,
-        "scrapeType": "posts"  # Fetch creator posts and profiles
+        "resultsLimit": limit_per_creator,
+        "resultsType": "posts",
+        "searchLimit": 1
     }
     
     try:
