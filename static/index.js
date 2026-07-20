@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupGlobalFilters();
     setupTimezoneToggle();
     setupDrawerControls();
+    setupScraperTab();
     
     lucide.createIcons();
 });
@@ -1666,6 +1667,11 @@ function switchTab(tabName) {
             desc.textContent = 'Search, sort, filter, and inspect individual posts';
             setupTableControls();
             break;
+        case 'scrape':
+            title.textContent = 'Live Scraper Audit';
+            desc.textContent = 'Trigger real-time scrapes using Apify APIs';
+            initScraperTab();
+            break;
     }
     
     refreshActiveView();
@@ -1794,3 +1800,211 @@ styleElement.innerHTML = `
     }
 `;
 document.head.appendChild(styleElement);
+
+// ==========================================================================
+// Live Apify Instagram Scraper Integration Features
+// ==========================================================================
+
+function setupScraperTab() {
+    const form = document.getElementById('scraper-form');
+    const peekBtn = document.getElementById('btn-peek-token');
+    const usernamesArea = document.getElementById('scrape-usernames');
+    const limitInput = document.getElementById('scrape-posts-limit');
+    
+    if (!form) return;
+    
+    // 1. Peek API token toggle
+    peekBtn.addEventListener('click', () => {
+        const tokenInput = document.getElementById('scrape-api-token');
+        const eyeOpen = document.getElementById('peek-eye-open');
+        const eyeClosed = document.getElementById('peek-eye-closed');
+        
+        if (tokenInput.type === 'password') {
+            tokenInput.type = 'text';
+            eyeOpen.style.display = 'none';
+            eyeClosed.style.display = 'block';
+        } else {
+            tokenInput.type = 'password';
+            eyeOpen.style.display = 'block';
+            eyeClosed.style.display = 'none';
+        }
+    });
+    
+    // 2. Cost estimator calculations
+    const onChangeCostParams = () => {
+        updateCostEstimate();
+    };
+    
+    usernamesArea.addEventListener('input', onChangeCostParams);
+    limitInput.addEventListener('input', onChangeCostParams);
+    limitInput.addEventListener('change', onChangeCostParams);
+    
+    // 3. Handle Scraper Form Submit
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        triggerApifyScrape();
+    });
+}
+
+function initScraperTab() {
+    // Load cached API Token
+    const cachedToken = localStorage.getItem('apify_api_token');
+    if (cachedToken) {
+        document.getElementById('scrape-api-token').value = cachedToken;
+    }
+    updateCostEstimate();
+}
+
+function updateCostEstimate() {
+    const usernamesVal = document.getElementById('scrape-usernames').value;
+    const limitVal = parseInt(document.getElementById('scrape-posts-limit').value) || 12;
+    const costBox = document.getElementById('scrape-cost-estimate').querySelector('span b');
+    
+    // Parse usernames count
+    const usernames = usernamesVal.split(',')
+        .map(u => u.trim().replace('@', ''))
+        .filter(u => u.length > 0);
+        
+    const profilesCount = usernames.length;
+    
+    if (profilesCount === 0) {
+        costBox.textContent = '~$0.00 USD';
+        return;
+    }
+    
+    // Cost coefficients based on Apify rates supplied:
+    // Profiles: ~$1.55 per 1,000 profiles (i.e. $0.00155 per profile)
+    // Posts: ~$1.50 per 1,000 posts (i.e. $0.00150 per post)
+    const costPerProfile = 0.00155;
+    const costPerPost = 0.00150;
+    
+    const totalPostsToScrape = profilesCount * limitVal;
+    const estimatedCost = (profilesCount * costPerProfile) + (totalPostsToScrape * costPerPost);
+    
+    costBox.textContent = `~$${estimatedCost.toFixed(4)} USD`;
+    
+    // Add breakdown tooltips
+    const countLabel = `${profilesCount} ${profilesCount === 1 ? 'profile' : 'profiles'}`;
+    const postsLabel = `${totalPostsToScrape} total posts`;
+    document.getElementById('scrape-cost-estimate').setAttribute('title', `Breakdown: ${countLabel} @ $1.55/k + ${postsLabel} @ $1.50/k`);
+}
+
+function triggerApifyScrape() {
+    const apiToken = document.getElementById('scrape-api-token').value.trim();
+    const usernamesVal = document.getElementById('scrape-usernames').value;
+    const limit = parseInt(document.getElementById('scrape-posts-limit').value) || 12;
+    
+    const usernames = usernamesVal.split(',')
+        .map(u => u.trim().replace('@', ''))
+        .filter(u => u.length > 0);
+        
+    if (!apiToken) {
+        showToast('error', 'Apify API Token is required to launch scraper.');
+        return;
+    }
+    
+    if (usernames.length === 0) {
+        showToast('error', 'Please enter at least one Instagram handle.');
+        return;
+    }
+    
+    // Save Token locally
+    localStorage.setItem('apify_api_token', apiToken);
+    
+    // Show Progress overlay
+    const progressOverlay = document.getElementById('scraper-progress');
+    const progressBar = document.getElementById('scrape-progress-bar');
+    const statusTitle = document.getElementById('scrape-status-title');
+    const statusDesc = document.getElementById('scrape-status-desc');
+    
+    progressOverlay.style.display = 'flex';
+    progressBar.style.width = '10%';
+    statusTitle.textContent = 'Connecting to Apify';
+    statusDesc.textContent = 'Initializing Apify Client and checking compute quota...';
+    
+    // Progressive progress ticker
+    let secondsElapsed = 0;
+    const progressInterval = setInterval(() => {
+        secondsElapsed++;
+        
+        if (secondsElapsed <= 4) {
+            progressBar.style.width = '20%';
+            statusTitle.textContent = 'Spawning Actor';
+            statusDesc.textContent = 'Launching instagram-scraper Actor in Apify container...';
+        } else if (secondsElapsed <= 12) {
+            progressBar.style.width = '40%';
+            statusTitle.textContent = 'Bypassing Anti-Bot';
+            statusDesc.textContent = 'Navigating Instagram pages via proxy configuration...';
+        } else if (secondsElapsed <= 28) {
+            progressBar.style.width = '60%';
+            statusTitle.textContent = 'Extracting Profiles';
+            statusDesc.textContent = `Scraping details for: ${usernames.join(', ')}...`;
+        } else if (secondsElapsed <= 55) {
+            progressBar.style.width = '80%';
+            statusTitle.textContent = 'Downloading Post Data';
+            statusDesc.textContent = `Retrieving last ${limit} posts per creator, comments, and reels...`;
+        } else if (secondsElapsed > 55) {
+            progressBar.style.width = '90%';
+            statusTitle.textContent = 'Structuring JSON Schema';
+            statusDesc.textContent = 'Aggregating posts list and compiling engagement rates...';
+        }
+    }, 1000);
+    
+    // Dispatch request to FastAPI backend
+    fetch('/api/analytics/scrape', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            api_token: apiToken,
+            usernames: usernames,
+            posts_limit: limit
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => {
+                throw new Error(err.detail || 'Scraping run failed.');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Success
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        statusTitle.textContent = 'Success!';
+        statusDesc.textContent = 'InstaPulse metrics compiled. Updating dashboards...';
+        
+        setTimeout(() => {
+            // Cache scraper results in state
+            rawDashboardData = data;
+            
+            // Clear inputs
+            document.getElementById('scrape-usernames').value = '';
+            
+            // Hide progress overlays
+            progressOverlay.style.display = 'none';
+            
+            // Refresh creator dropdown and execute analytics
+            populateCreatorDropdowns();
+            configureDateInputsBounds();
+            
+            // Reset active filters
+            resetFilterInputs();
+            applyGlobalFilters();
+            
+            // Navigate back to overview page
+            switchTab('overview');
+            
+            showToast('success', `Live scrape complete! Loaded fresh data for: ${usernames.join(', ')}`);
+        }, 800);
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        progressOverlay.style.display = 'none';
+        console.error(error);
+        showToast('error', error.message || 'Scraper run failed. Check API key and profile handle.');
+    });
+}

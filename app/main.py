@@ -5,7 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from pydantic import BaseModel
+from typing import List
 from app.parser import parse_file, run_analytics
+from app.scraper import run_apify_instagram_scraper
+
+class ScrapeRequest(BaseModel):
+    api_token: str
+    usernames: List[str]
+    posts_limit: int = 12
 
 # Initialize FastAPI App
 app = FastAPI(
@@ -96,6 +104,39 @@ async def upload_dataset(file: UploadFile = File(...)):
                 os.remove(temp_file_path)
             except Exception:
                 pass
+
+@app.post("/api/analytics/scrape")
+def scrape_and_analyze(request: ScrapeRequest):
+    """
+    Triggers live scraping from Apify for one or more profiles,
+    processes the datasets, and returns the computed analytics.
+    """
+    try:
+        # Call scraper helper
+        profiles = run_apify_instagram_scraper(
+            api_token=request.api_token,
+            usernames=request.usernames,
+            limit_per_creator=request.posts_limit
+        )
+        
+        if not profiles:
+            raise HTTPException(
+                status_code=400, 
+                detail="Scraper returned an empty dataset. Make sure the Instagram handles are public and valid."
+            )
+            
+        # Analyze scraped profiles
+        analytics_result = run_analytics(profiles)
+        return analytics_result
+        
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except RuntimeError as run_err:
+        raise HTTPException(status_code=502, detail=str(run_err))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Scraping analysis failed: {str(e)}")
 
 # Serve static frontend files
 @app.get("/")

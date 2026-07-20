@@ -50,6 +50,10 @@
                     <i data-lucide="file-text"></i>
                     <span>Posts Viewer</span>
                 </button>
+                <button class="nav-item" data-tab="scrape">
+                    <i data-lucide="scan-line"></i>
+                    <span>Scrape Live Data</span>
+                </button>
             </nav>
             
             <div class="sidebar-footer">
@@ -396,6 +400,129 @@
                         
                         <div class="table-pagination" id="posts-pagination">
                             <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: SCRAPE LIVE DATA -->
+                <div id="tab-scrape" class="tab-panel">
+                    <div class="grid-2col">
+                        <!-- Scraping Configuration Card -->
+                        <div class="chart-card glass-panel scrape-config-card">
+                            <div class="chart-header">
+                                <h3>Live Scraper Controls</h3>
+                                <p>Extract live profile statistics and latest posts directly from Instagram</p>
+                            </div>
+                            
+                            <form id="scraper-form" class="scraper-form">
+                                <div class="form-group-vertical">
+                                    <label for="scrape-api-token">
+                                        <span>Apify API Token</span>
+                                        <a href="https://console.apify.com/account/integrations" target="_blank" class="helper-link">Find Token</a>
+                                    </label>
+                                    <div class="input-password-wrapper">
+                                        <input type="password" id="scrape-api-token" placeholder="apify_api_xxxxxxxxxxxxxxxxxxxxxxxx" required>
+                                        <button type="button" class="peek-btn" id="btn-peek-token">
+                                            <i data-lucide="eye" id="peek-eye-open"></i>
+                                            <i data-lucide="eye-off" id="peek-eye-closed" style="display:none;"></i>
+                                        </button>
+                                    </div>
+                                    <span class="input-tip">Saved locally in your browser's localStorage for convenience.</span>
+                                </div>
+                                
+                                <div class="form-group-vertical">
+                                    <label for="scrape-usernames">
+                                        <span>Instagram Creator Handles</span>
+                                        <span class="helper-text">(comma-separated)</span>
+                                    </label>
+                                    <textarea id="scrape-usernames" placeholder="e.g. drdhamija, dietitianrajatjain, sakshilalwani_nutritionist" required></textarea>
+                                    <span class="input-tip">You can input usernames (e.g. @drdhamija) or full profile URLs.</span>
+                                </div>
+                                
+                                <div class="form-group-vertical">
+                                    <label for="scrape-posts-limit">Max posts to scrape per creator</label>
+                                    <input type="number" id="scrape-posts-limit" value="12" min="1" max="50">
+                                    <span class="input-tip">More posts will yield deeper timeline stats but take longer to scrape.</span>
+                                </div>
+                                
+                                <!-- Cost Estimate message -->
+                                <div class="cost-estimate-banner" id="scrape-cost-estimate">
+                                    <i data-lucide="calculator"></i>
+                                    <span>Estimated Cost: <b>~$0.00 USD</b></span>
+                                </div>
+                                
+                                <button type="submit" id="btn-start-scrape" class="start-scrape-btn">
+                                    <i data-lucide="zap"></i>
+                                    <span>Scrape & Analyze Live Data</span>
+                                </button>
+                            </form>
+                            
+                            <!-- Scraper Running Progress Overlay -->
+                            <div class="scraper-running-overlay" id="scraper-progress" style="display:none;">
+                                <div class="spinner"></div>
+                                <h3 id="scrape-status-title">Triggering Apify Scraper</h3>
+                                <p id="scrape-status-desc">Launching Instagram Scraper Actor...</p>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" id="scrape-progress-bar" style="width: 10%"></div>
+                                </div>
+                                <span class="scrape-time-warning">This process usually takes 60 - 90 seconds. Please do not close this tab.</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Costing Table & Guidelines Card -->
+                        <div class="chart-card glass-panel scrape-guidelines-card">
+                            <div class="chart-header">
+                                <h3>Apify Billing & Pricing Guidance</h3>
+                                <p>Approximate compute costs associated with the Instagram Scraper actor</p>
+                            </div>
+                            
+                            <div class="pricing-table-wrapper">
+                                <table class="pricing-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Data Type</th>
+                                            <th>Approximate Cost</th>
+                                            <th>Source</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><b>Instagram Posts</b></td>
+                                            <td class="price-cell"><b>$1.50</b> <span class="unit">per 1,000 posts</span></td>
+                                            <td>Apify Platform</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Instagram Profiles</b></td>
+                                            <td class="price-cell"><b>$1.50–$1.60</b> <span class="unit">per 1,000 profiles</span></td>
+                                            <td>Apify Platform</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Instagram Comments</b></td>
+                                            <td class="price-cell"><b>$2.30</b> <span class="unit">per 1,000 comments</span></td>
+                                            <td>Apify Platform</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Reels</b></td>
+                                            <td class="price-cell"><b>$1.50</b> <span class="unit">per 1,000 reels</span></td>
+                                            <td>Apify Platform</td>
+                                        </tr>
+                                        <tr>
+                                            <td><b>Hashtags</b></td>
+                                            <td class="price-cell"><b>$1.50–$1.90</b> <span class="unit">per 1,000 results</span></td>
+                                            <td>Apify Platform</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="pricing-notes">
+                                <h4>💡 Cost Saving Tips:</h4>
+                                <ul>
+                                    <li>Keep your <b>Max posts to scrape</b> limit low (e.g. 10-15 posts) for fast, low-cost audits.</li>
+                                    <li>Apify offers a <b>Free Tier</b> which includes $5 of free platform credits every month. This is equivalent to scraping roughly 3,300 profiles or posts for free!</li>
+                                    <li>InstaPulse automatically caches the compiled outputs in memory, allowing you to filter and explore without triggering repeat scrapings.</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
