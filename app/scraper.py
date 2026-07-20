@@ -138,8 +138,14 @@ def run_apify_instagram_scraper(api_token, usernames, limit_per_creator=12):
         print(f"Triggering Apify Instagram Scraper run for URLs: {direct_urls}...")
         run = client.actor("apify/instagram-scraper").call(run_input=run_input)
         
-        # Load run dataset items
-        dataset_id = run.get("defaultDatasetId")
+        if not run:
+            raise RuntimeError("Scraper run returned empty result.")
+            
+        # Extract default dataset ID supporting both object attributes and dict subscription
+        dataset_id = getattr(run, "default_dataset_id", None) or (run.get("defaultDatasetId") if hasattr(run, "get") else None)
+        if not dataset_id:
+            raise RuntimeError("Could not locate defaultDatasetId in run details.")
+            
         print(f"Fetch results from dataset ID: {dataset_id}...")
         items = client.dataset(dataset_id).list_items().items
         
