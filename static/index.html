@@ -108,6 +108,37 @@
                     </div>
                 </div>
 
+                <!-- Global Filter Bar -->
+                <section class="global-filter-bar glass-panel">
+                    <div class="filter-group">
+                        <label for="filter-global-creator"><i data-lucide="users"></i> Creator Handle</label>
+                        <select id="filter-global-creator">
+                            <option value="all">All Creators (Comparison Mode)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-global-type"><i data-lucide="video"></i> Content Format</label>
+                        <select id="filter-global-type">
+                            <option value="all">All Formats</option>
+                            <option value="Video">Video (Reels)</option>
+                            <option value="Image">Static Image</option>
+                            <option value="Sidecar">Carousel (Slides)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-start-date"><i data-lucide="calendar"></i> From Date</label>
+                        <input type="date" id="filter-start-date">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-end-date"><i data-lucide="calendar"></i> To Date</label>
+                        <input type="date" id="filter-end-date">
+                    </div>
+                    <button id="filter-reset-btn" class="reset-btn">
+                        <i data-lucide="rotate-ccw"></i>
+                        <span>Reset</span>
+                    </button>
+                </section>
+
                 <!-- KPI Metric Row -->
                 <section class="kpi-grid">
                     <div class="kpi-card">
@@ -150,6 +181,20 @@
 
                 <!-- TAB 1: OVERVIEW -->
                 <div id="tab-overview" class="tab-panel active">
+                    <!-- Actionable Insights Banner -->
+                    <div id="insights-banner" class="insights-banner glass-panel">
+                        <div class="insights-banner-header">
+                            <div class="insights-banner-title">
+                                <i data-lucide="sparkles" class="glowing-icon"></i>
+                                <h3>InstaPulse Smart Takeaways</h3>
+                            </div>
+                            <span class="insights-badge">AI/Rule Generated</span>
+                        </div>
+                        <div class="insights-grid" id="insights-grid-container">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+
                     <div class="grid-2col">
                         <!-- Chart 1: Followers comparison -->
                         <div class="chart-card glass-panel">
@@ -221,26 +266,44 @@
 
                 <!-- TAB 3: ENGAGEMENT -->
                 <div id="tab-engagement" class="tab-panel">
-                    <div class="grid-2col">
-                        <!-- Chart 3: Posting Schedule (Hourly) -->
-                        <div class="chart-card glass-panel">
-                            <div class="chart-header">
-                                <h3>Hourly Posting Schedule</h3>
-                                <p>Number of posts published by hour of day (UTC)</p>
+                    <!-- Heatmap Card with Timezone Control -->
+                    <div class="chart-card glass-panel heatmap-card">
+                        <div class="heatmap-header">
+                            <div class="heatmap-title-area">
+                                <h3>Best Time to Post (7x24 Matrix)</h3>
+                                <p>Publishing frequency map showing posting density and engagement peaks</p>
                             </div>
-                            <div class="chart-container">
-                                <canvas id="hourlyScheduleChart"></canvas>
+                            <div class="timezone-control">
+                                <label for="timezone-select"><i data-lucide="globe"></i> Timezone:</label>
+                                <select id="timezone-select">
+                                    <option value="UTC">UTC (Scraper Default)</option>
+                                    <option value="local">Local Browser Time</option>
+                                    <option value="America/New_York">US Eastern (EST/EDT)</option>
+                                    <option value="Europe/London">London (GMT/BST)</option>
+                                    <option value="Asia/Kolkata">India (IST)</option>
+                                    <option value="Asia/Tokyo">Tokyo (JST)</option>
+                                </select>
                             </div>
                         </div>
                         
-                        <!-- Chart 4: Posting Schedule (Daily) -->
-                        <div class="chart-card glass-panel">
-                            <div class="chart-header">
-                                <h3>Weekly Publishing Patterns</h3>
-                                <p>Number of posts published by day of week</p>
+                        <div class="heatmap-legend">
+                            <span class="legend-label">Low Engagement / Density</span>
+                            <div class="legend-scale">
+                                <div class="scale-cell lvl-0" title="0 posts"></div>
+                                <div class="scale-cell lvl-1" title="1-2 posts"></div>
+                                <div class="scale-cell lvl-2" title="3-5 posts"></div>
+                                <div class="scale-cell lvl-3" title="6-9 posts"></div>
+                                <div class="scale-cell lvl-4" title="10+ posts / Top engagement spikes"></div>
                             </div>
-                            <div class="chart-container">
-                                <canvas id="dailyScheduleChart"></canvas>
+                            <span class="legend-label">High Engagement / Density</span>
+                        </div>
+                        
+                        <div class="heatmap-matrix-scroll">
+                            <div class="heatmap-matrix-container">
+                                <!-- Day & Hour Labels + Grid Cells generated dynamically -->
+                                <div class="heatmap-grid" id="heatmap-grid">
+                                    <!-- Populated dynamically via JS -->
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -257,14 +320,25 @@
                             </div>
                         </div>
 
-                        <!-- Hashtag Frequency Card -->
-                        <div class="chart-card glass-panel">
+                        <!-- Hashtag Performance Card -->
+                        <div class="chart-card glass-panel hashtag-performance-card">
                             <div class="chart-header">
-                                <h3>Top Scraped Hashtags</h3>
-                                <p>Most frequently used hashtags across captions</p>
+                                <h3>Hashtag Performance Analytics</h3>
+                                <p>Usage frequency compared with average engagement rates</p>
                             </div>
-                            <div class="hashtag-cloud-container" id="hashtag-container">
-                                <!-- Populated dynamically -->
+                            <div class="hashtag-table-wrapper">
+                                <table class="hashtag-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Hashtag</th>
+                                            <th>Usage Frequency</th>
+                                            <th>Avg Engagement Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="hashtag-performance-body">
+                                        <!-- Populated dynamically via JS -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
